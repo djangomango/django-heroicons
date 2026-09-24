@@ -1,43 +1,35 @@
-from __future__ import annotations
-
 import argparse
 import re
 import sys
 from collections.abc import Sequence
 from contextlib import closing
+from io import TextIOWrapper
 
 
 def main(argv: Sequence[str] | None = None) -> int:
-    parser = argparse.ArgumentParser()
+    """Execute heroicons CLI command dispatcher."""
+    parser = argparse.ArgumentParser(prog="__main__.py")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    update_parser = subparsers.add_parser(
-        "update", help="Update template files from v1 to v2"
-    )
-    update_parser.add_argument("file", nargs="+")
+    update_parser = subparsers.add_parser("update", help="Update template files from v1 to v2")
+    update_parser.add_argument("file", type=argparse.FileType("r+"), nargs="+")
 
     args = parser.parse_args(argv)
 
     if args.command == "update":
-        return update_files(filenames=args.file)
+        return update_files(files=args.file)
     else:  # pragma: no cover
-        # Unreachable
         raise NotImplementedError(f"Command {args.command} does not exist.")
 
 
-def update_files(filenames: list[str]) -> int:
+def update_files(files: list[TextIOWrapper]) -> int:
+    """Update template files in-place with migrated icon names."""
     returncode = 0
 
-    for filename in filenames:
-        try:
-            file = open(filename, "r+", encoding="utf-8")  # noqa: SIM115
-        except OSError as e:  # pragma: no cover
-            print(f"Error opening file {filename!r}: {e}", file=sys.stderr)
-            return 2
+    for file in files:
         with closing(file):
             content = file.read()
             new_content = django_re.sub(django_replace, content)
-            new_content = jinja_re.sub(jinja_replace, new_content)
             if new_content != content:
                 print(f"Rewriting {file.name}", file=sys.stderr)
 
@@ -71,35 +63,7 @@ django_re = re.compile(
 
 
 def django_replace(match: re.Match[str]) -> str:
-    name = match["name"]
-    name = renames.get(name, name)
-    return match.expand(rf"\g<start>\g<quote>{name}\g<quote>\g<tail>")
-
-
-jinja_re = re.compile(
-    r"""
-        (?P<start>
-            \{\{
-            [ \n]*
-            heroicon_(outline|solid)
-            \(
-            [ \n]*
-        )
-        (?P<quote>["'])
-        (?P<name>[a-z0-9-]+)
-        (?P=quote)
-        (?P<tail>
-            [^)]*
-            \)
-            [ \n]*
-            \}\}
-        )
-    """,
-    re.VERBOSE,
-)
-
-
-def jinja_replace(match: re.Match[str]) -> str:
+    """Substitute deprecated heroicon names in matched regex."""
     name = match["name"]
     name = renames.get(name, name)
     return match.expand(rf"\g<start>\g<quote>{name}\g<quote>\g<tail>")

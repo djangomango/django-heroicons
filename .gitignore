@@ -1,7 +1,11 @@
+*.py[cod]
+__pycache__/
 *.egg-info/
-*.pyc
-/.coverage
-/.coverage.*
-/.tox
-/build/
-/dist/
+dist/
+build/
+.idea
+venv/
+
+# Local developer tools and private runners
+local/
+scripts/local/

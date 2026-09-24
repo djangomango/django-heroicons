@@ -1,61 +1,49 @@
-from __future__ import annotations
-
-import os
-import sys
+from pathlib import Path
+from typing import Any
 
 import pytest
 
-from heroicons import __main__  # noqa: F401
-from heroicons.cli import main
+from django_heroicons import __main__  # noqa: F401
+from django_heroicons.cli import main
 
 
-def test_no_subcommand(capsys):
+def test_no_subcommand(capsys: Any) -> None:
+    """Test CLI invocation with no subcommand exits with code 2."""
     with pytest.raises(SystemExit) as excinfo:
         main([])
 
     assert excinfo.value.code == 2
     out, err = capsys.readouterr()
-    if sys.version_info >= (3, 14):
-        assert err == (
-            "usage: python -m pytest [-h] {update} ...\n"
-            + "python -m pytest: error: the following arguments are required: command\n"
-        )
-    else:
-        assert err == (
-            "usage: __main__.py [-h] {update} ...\n"
-            + "__main__.py: error: the following arguments are required: command\n"
-        )
+    assert err == (
+        "usage: __main__.py [-h] {update} ...\n" + "__main__.py: error: the following arguments are required: command\n"
+    )
     assert out == ""
 
 
-def test_help():
+def test_help() -> None:
+    """Test CLI help flag exits with code 0."""
     with pytest.raises(SystemExit) as excinfo:
         main(["--help"])
 
     assert excinfo.value.code == 0
 
 
-def test_update_no_files(capsys):
+def test_update_no_files(capsys: Any) -> None:
+    """Test update command without file arguments exits with code 2."""
     with pytest.raises(SystemExit) as excinfo:
         main(["update"])
 
     assert excinfo.value.code == 2
     out, err = capsys.readouterr()
-    if sys.version_info >= (3, 14):
-        python = os.path.basename(sys.executable)
-        assert err == (
-            f"usage: {python} -m pytest update [-h] file [file ...]\n"
-            + f"{python} -m pytest update: error: the following arguments are required: file\n"
-        )
-    else:
-        assert err == (
-            "usage: __main__.py update [-h] file [file ...]\n"
-            + "__main__.py update: error: the following arguments are required: file\n"
-        )
+    assert err == (
+        "usage: __main__.py update [-h] file [file ...]\n"
+        + "__main__.py update: error: the following arguments are required: file\n"
+    )
     assert out == ""
 
 
-def test_update_empty(capsys, tmp_path):
+def test_update_empty(capsys: Any, tmp_path: Path) -> None:
+    """Test update command on empty template file."""
     path = tmp_path / "example.html"
     path.write_text("")
 
@@ -68,24 +56,10 @@ def test_update_empty(capsys, tmp_path):
     assert path.read_text() == ""
 
 
-def test_update_non_existent(capsys):
-    result = main(["update", "non-existent.html"])
-
-    assert result == 2
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert (
-        err
-        == "Error opening file 'non-existent.html': [Errno 2] No such file or directory: 'non-existent.html'\n"
-    )
-
-
-def test_update_django_no_rename(capsys, tmp_path):
+def test_update_django_no_rename(capsys: Any, tmp_path: Path) -> None:
+    """Test template file requiring no renaming remains unmodified."""
     path = tmp_path / "example.html"
-    source = (
-        '{% heroicon_outline "academic-cap" stroke_width=1'
-        + ' data_controller="academia" %}\n'
-    )
+    source = '{% heroicon_outline "academic-cap" stroke_width=1' + ' data_controller="academia" %}\n'
     path.write_text(source)
 
     result = main(["update", str(path)])
@@ -97,7 +71,8 @@ def test_update_django_no_rename(capsys, tmp_path):
     assert path.read_text() == source
 
 
-def test_update_django_simple(capsys, tmp_path):
+def test_update_django_simple(capsys: Any, tmp_path: Path) -> None:
+    """Test rewriting single heroicon outline name."""
     path = tmp_path / "example.html"
     path.write_text('{% heroicon_outline "adjustments" %}\n')
 
@@ -110,7 +85,8 @@ def test_update_django_simple(capsys, tmp_path):
     assert path.read_text() == '{% heroicon_outline "adjustments-vertical" %}\n'
 
 
-def test_update_django_single_quotes(capsys, tmp_path):
+def test_update_django_single_quotes(capsys: Any, tmp_path: Path) -> None:
+    """Test rewriting single-quoted heroicon name."""
     path = tmp_path / "example.html"
     path.write_text("{% heroicon_outline 'archive' %}\n")
 
@@ -123,7 +99,8 @@ def test_update_django_single_quotes(capsys, tmp_path):
     assert path.read_text() == "{% heroicon_outline 'archive-box' %}\n"
 
 
-def test_update_django_solid(capsys, tmp_path):
+def test_update_django_solid(capsys: Any, tmp_path: Path) -> None:
+    """Test rewriting solid heroicon name."""
     path = tmp_path / "example.html"
     path.write_text("{% heroicon_solid 'archive' %}\n")
 
@@ -136,11 +113,10 @@ def test_update_django_solid(capsys, tmp_path):
     assert path.read_text() == "{% heroicon_solid 'archive-box' %}\n"
 
 
-def test_update_django_arguments(capsys, tmp_path):
+def test_update_django_arguments(capsys: Any, tmp_path: Path) -> None:
+    """Test rewriting heroicon tag with arguments."""
     path = tmp_path / "example.html"
-    path.write_text(
-        '{% heroicon_outline "adjustments" stroke_width=1 data_year="2022" %}\n'
-    )
+    path.write_text('{% heroicon_outline "adjustments" stroke_width=1 data_year="2022" %}\n')
 
     result = main(["update", str(path)])
 
@@ -148,13 +124,11 @@ def test_update_django_arguments(capsys, tmp_path):
     out, err = capsys.readouterr()
     assert out == ""
     assert err == f"Rewriting {path}\n"
-    assert path.read_text() == (
-        '{% heroicon_outline "adjustments-vertical" stroke_width=1'
-        + ' data_year="2022" %}\n'
-    )
+    assert path.read_text() == ('{% heroicon_outline "adjustments-vertical" stroke_width=1' + ' data_year="2022" %}\n')
 
 
-def test_update_django_no_space(capsys, tmp_path):
+def test_update_django_no_space(capsys: Any, tmp_path: Path) -> None:
+    """Test rewriting heroicon tag with no whitespace."""
     path = tmp_path / "example.html"
     path.write_text('{%heroicon_outline "adjustments"%}\n')
 
@@ -167,7 +141,8 @@ def test_update_django_no_space(capsys, tmp_path):
     assert path.read_text() == '{%heroicon_outline "adjustments-vertical"%}\n'
 
 
-def test_update_django_extra_space(capsys, tmp_path):
+def test_update_django_extra_space(capsys: Any, tmp_path: Path) -> None:
+    """Test rewriting heroicon tag with extra whitespace."""
     path = tmp_path / "example.html"
     path.write_text('{%   heroicon_outline   "adjustments"   %}\n')
 
@@ -178,118 +153,3 @@ def test_update_django_extra_space(capsys, tmp_path):
     assert out == ""
     assert err == f"Rewriting {path}\n"
     assert path.read_text() == '{%   heroicon_outline   "adjustments-vertical"   %}\n'
-
-
-def test_update_jinja_no_rename(capsys, tmp_path):
-    path = tmp_path / "example.html"
-    source = (
-        '{{ heroicon_outline("academic-cap", stroke_width=1,'
-        + ' data_controller="academia") }}\n'
-    )
-    path.write_text(source)
-
-    result = main(["update", str(path)])
-
-    assert result == 0
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert err == ""
-    assert path.read_text() == source
-
-
-def test_update_jinja_simple(capsys, tmp_path):
-    path = tmp_path / "example.html"
-    path.write_text('{{ heroicon_outline("adjustments") }}\n')
-
-    result = main(["update", str(path)])
-
-    assert result == 1
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert err == f"Rewriting {path}\n"
-    assert path.read_text() == '{{ heroicon_outline("adjustments-vertical") }}\n'
-
-
-def test_update_jinja_single_quotes(capsys, tmp_path):
-    path = tmp_path / "example.html"
-    path.write_text("{{ heroicon_outline('archive') }}\n")
-
-    result = main(["update", str(path)])
-
-    assert result == 1
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert err == f"Rewriting {path}\n"
-    assert path.read_text() == "{{ heroicon_outline('archive-box') }}\n"
-
-
-def test_update_jinja_solid(capsys, tmp_path):
-    path = tmp_path / "example.html"
-    path.write_text("{{ heroicon_solid('archive') }}\n")
-
-    result = main(["update", str(path)])
-
-    assert result == 1
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert err == f"Rewriting {path}\n"
-    assert path.read_text() == "{{ heroicon_solid('archive-box') }}\n"
-
-
-def test_update_jinja_arguments(capsys, tmp_path):
-    path = tmp_path / "example.html"
-    path.write_text(
-        '{{ heroicon_outline("adjustments", stroke_width=1, data_year="2022") }}\n'
-    )
-
-    result = main(["update", str(path)])
-
-    assert result == 1
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert err == f"Rewriting {path}\n"
-    assert path.read_text() == (
-        '{{ heroicon_outline("adjustments-vertical", stroke_width=1,'
-        + ' data_year="2022") }}\n'
-    )
-
-
-def test_update_jinja_no_space(capsys, tmp_path):
-    path = tmp_path / "example.html"
-    path.write_text('{{heroicon_outline("adjustments")}}\n')
-
-    result = main(["update", str(path)])
-
-    assert result == 1
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert err == f"Rewriting {path}\n"
-    assert path.read_text() == '{{heroicon_outline("adjustments-vertical")}}\n'
-
-
-def test_update_jinja_extra_space(capsys, tmp_path):
-    path = tmp_path / "example.html"
-    path.write_text('{{   heroicon_outline(  "adjustments"  )   }}\n')
-
-    result = main(["update", str(path)])
-
-    assert result == 1
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert err == f"Rewriting {path}\n"
-    assert (
-        path.read_text() == '{{   heroicon_outline(  "adjustments-vertical"  )   }}\n'
-    )
-
-
-def test_update_jinja_multiline(capsys, tmp_path):
-    path = tmp_path / "example.html"
-    path.write_text('{{\nheroicon_outline(\n"adjustments"\n)\n}}\n')
-
-    result = main(["update", str(path)])
-
-    assert result == 1
-    out, err = capsys.readouterr()
-    assert out == ""
-    assert err == f"Rewriting {path}\n"
-    assert path.read_text() == '{{\nheroicon_outline(\n"adjustments-vertical"\n)\n}}\n'
